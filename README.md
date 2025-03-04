@@ -5,8 +5,14 @@
 - Python >= 3.9
 - PyTorch >= 2.0.1
 - normflows >= 1.7.2
+- GPUtil >= 1.4
 
 ## Preparation
+
+```bash
+pip install GPUtil
+pip install normflows
+```
 
 1. Create experiment environment using e.g. conda as follows
 ```bash
@@ -26,3 +32,9 @@ python syntheticData.py
 
 Synthetic datasets are saved into folder "synthetic_data/."
 (real datasets should be saved into folder "data/." for preparing the colon data set use "prepare_colon_data.py")
+
+
+# Part of the code here is adapated from normflows package
+# https://github.com/VincentStimper/normalizing-flows
+
+

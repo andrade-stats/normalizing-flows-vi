@@ -6,174 +6,6 @@ import numpy as np
 import new_flows
 import commons
 
-def forward_kld(p, q_aux, q_new, num_samples , lambda_value = 1.0):
-    assert(isinstance(p, Target))
-    assert(type(q_new) is nf.NormalizingFlow)
-
-    z, log_q_aux, log_p = get_q_samples_with_densities(p, q_aux, num_samples)
-
-    log_q_new = q_new.log_prob(z)
-    assert(torch.sum(torch.isnan(log_q_new)) == 0)
-
-    if lambda_value == 1.0:
-        weights = torch.exp(log_p - log_q_aux)
-        integrand = weights * (log_p - log_q_new)
-    else:
-        weights = torch.exp(lambda_value * log_p - lambda_value * log_q_aux)
-        mixed_log_prob = lambda_value * log_p + (1.0 - lambda_value) * log_q_aux
-        integrand = weights * (mixed_log_prob - log_q_new)
-
-    return torch.mean(integrand)
-
-
-def chi2_advanced(p, q_aux, q_new, num_samples):
-    assert(isinstance(p, Target))
-    assert(type(q_new) is nf.NormalizingFlow)
-
-    z, log_q_aux, log_p = get_q_samples_with_densities(p, q_aux, num_samples)
-
-    log_q_new = q_new.log_prob(z)
-    assert(torch.sum(torch.isnan(log_q_new)) == 0)
-
-    log_integrand = torch.exp(3.0 * log_p - log_q_aux - 2.0 * log_q_new)
-    
-    # print("log_integrand.shape[0] = ", log_integrand.shape[0])
-    # print("torch.log(log_integrand.shape[0] = ", torch.log(torch.tensor(log_integrand.shape[0])))
-    
-    return torch.logsumexp(log_integrand, axis = 0) - torch.log(torch.tensor(log_integrand.shape[0]))
-    # return torch.mean(integrand)
-
-
-# related works
-# "Variational Inference via χ Upper Bound Minimization", 2017 (appendix contains the proof that mininizing the variance of importance sampling is equivallent to minimizing the chi^2 divergence)
-# "Challenges in Computing and Optimizing Upper Bounds of Marginal Likelihood based on Chi-Square Divergences", 2018
-def chi2_simple(nfm, num_samples=1):
-    
-    z, log_q = nfm.sample(num_samples)
-    z, log_q, _, _ = filter_illegal_values_from_samples(z, log_q)
-
-    log_p = nfm.p.log_prob(z)
-    
-    not_nan_ids = torch.logical_and( torch.logical_not(torch.isnan(log_q)) , torch.logical_not(torch.isnan(log_p)))
-    # if torch.sum(not_nan_ids) / not_nan_ids.shape[0] < 0.5:
-    if torch.sum(not_nan_ids) == 0:
-        print("** WARNING too many nans !!")
-        print("not nan ratio = ", torch.sum(not_nan_ids) / not_nan_ids.shape[0])
-        print("nan in q = ", torch.sum(torch.isnan(log_q)))
-        print("nan in p = ", torch.sum(torch.isnan(log_p)))
-        assert(False)
-    
-    log_q = log_q[not_nan_ids]
-    log_p = log_p[not_nan_ids]
-    
-    log_integrand = 2.0 * (log_p - log_q)
-
-    # print("log_q.shape = ", log_q.shape)
-    # print("log_p.shape = ", log_p.shape)
-    # print("not_nan_ids.shape = ", not_nan_ids.shape)
-    # assert(False)
-    num_samples_after_filtering = not_nan_ids.shape[0]
-    return torch.logsumexp(log_integrand, dim = 0)  - torch.log(torch.tensor(num_samples_after_filtering)), num_samples_after_filtering
-
-
-def chi2(nfm, num_samples=1, beta = 1.0):
-    
-    z, log_q = nfm.sample(num_samples)
-    z, log_q, _, _ = filter_illegal_values_from_samples(z, log_q)
-
-    log_p = nfm.p.log_prob(z)
-    
-    not_nan_ids = torch.logical_and( torch.logical_not(torch.isnan(log_q)) , torch.logical_not(torch.isnan(log_p)))
-    # if torch.sum(not_nan_ids) / not_nan_ids.shape[0] < 0.5:
-    if torch.sum(not_nan_ids) == 0:
-        print("** WARNING too many nans !!")
-        print("not nan ratio = ", torch.sum(not_nan_ids) / not_nan_ids.shape[0])
-        print("nan in q = ", torch.sum(torch.isnan(log_q)))
-        print("nan in p = ", torch.sum(torch.isnan(log_p)))
-        assert(False)
-    
-    log_q = log_q[not_nan_ids]
-    log_p = log_p[not_nan_ids]
-    z = z[not_nan_ids, :]
-
-    log_integrand = 2.0 * (beta * log_p - log_q)
-
-    not_nan_ids = torch.logical_not(torch.isnan(log_integrand))
-    log_integrand = log_integrand[not_nan_ids]
-
-    # print("log_q.shape = ", log_q.shape)
-    # print("log_p.shape = ", log_p.shape)
-    # print("not_nan_ids.shape = ", not_nan_ids.shape)
-    # print("log_integrand = ", log_integrand.shape)
-    # print("score_term = ", score_term.shape)
-
-    chi2_with_score = torch.exp(log_integrand)
-
-    z = z[not_nan_ids, :]
-    theta_fixed = z.detach()
-    score_term = nfm.log_prob(theta_fixed)
-    chi2_without_score = torch.exp(log_integrand) + 2.0 * score_term
-    
-    return chi2_without_score, chi2_with_score
-
-# kld_without_score, kld_with_score
-
-def get_q_samples_with_densities(p, q, num_samples):
-    
-    z, log_q = q.sample(num_samples)
-    log_p = p.log_prob(z)
-    
-    not_nan_ids = torch.logical_and( torch.logical_not(torch.isnan(log_q)) , torch.logical_not(torch.isnan(log_p)))
-    if torch.sum(not_nan_ids) == 0:
-        print("** ERROR all nans !!")
-        print("not nan ratio = ", torch.sum(not_nan_ids) / not_nan_ids.shape[0])
-        print("nan in q = ", torch.sum(torch.isnan(log_q)))
-        print("nan in p = ", torch.sum(torch.isnan(log_p)))
-        assert(False)
-    
-    return z[not_nan_ids], log_q[not_nan_ids], log_p[not_nan_ids]
-
-
-def reverse_kld_for_analysis(nfm, num_samples=1, beta=1.0, show_details = False):
-    """Adjusted from original implementation in core.py of normflows packages
-
-    Args:
-        num_samples: Number of samples to draw from base distribution
-        beta: Annealing parameter, see [arXiv 1505.05770](https://arxiv.org/abs/1505.05770)
-        
-    Returns:
-        Estimate of the reverse KL divergence averaged over latent samples
-    """
-    
-    z, log_q = nfm.sample(num_samples)
-    z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
-
-    log_p = nfm.p.log_prob(z)
-    
-    
-    not_nan_ids = torch.logical_and( torch.logical_not(torch.isnan(log_q)) , torch.logical_not(torch.isnan(log_p)))
-    # if torch.sum(not_nan_ids) / not_nan_ids.shape[0] < 0.5:
-    if torch.sum(not_nan_ids) == 0:
-        print("** WARNING too many nans !!")
-        print("not nan ratio = ", torch.sum(not_nan_ids) / not_nan_ids.shape[0])
-        print("nan in q = ", torch.sum(torch.isnan(log_q)))
-        print("nan in p = ", torch.sum(torch.isnan(log_p)))
-    
-    if show_details:
-        infinite_count_q = torch.sum(torch.logical_not(torch.isfinite(log_q)))
-        infinite_count_p = torch.sum(torch.logical_not(torch.isfinite(log_p)))
-        print("---")
-        print("infinite_count_q = ", infinite_count_q)
-        print("infinite_count_p = ", infinite_count_p)
-        assert(False)
-    
-    log_p = log_p[not_nan_ids]
-    log_q = log_q[not_nan_ids]
-    kld_with_score = log_q - beta * log_p
-
-    return kld_with_score, log_q.detach(), log_p.detach()
-
-
 
 def filter_illegal_values_from_samples(z, log_q):
     failed = False
@@ -227,7 +59,47 @@ def filter_illegal_values_from_samples(z, log_q):
     return z, log_q, invalid_value_found, failed
 
 
-def reverse_kld_without_score_debug(mixture_nfm, num_samples=1, beta = 1.0, redGradVarEst = None, cushion_t = None):
+def reverse_kld(nfm, num_samples=1, beta=1.0, show_details = False):
+    """Adjusted from original implementation in core.py of normflows packages
+
+    Args:
+        num_samples: Number of samples to draw from base distribution
+        beta: Annealing parameter, see [arXiv 1505.05770](https://arxiv.org/abs/1505.05770)
+        
+    Returns:
+        Estimate of the reverse KL divergence averaged over latent samples
+    """
+    
+    z, log_q = nfm.sample(num_samples)
+    z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
+
+    log_p = nfm.p.log_prob(z)
+    
+    
+    not_nan_ids = torch.logical_and( torch.logical_not(torch.isnan(log_q)) , torch.logical_not(torch.isnan(log_p)))
+    if torch.sum(not_nan_ids) == 0:
+        print("** WARNING too many nans !!")
+        print("not nan ratio = ", torch.sum(not_nan_ids) / not_nan_ids.shape[0])
+        print("nan in q = ", torch.sum(torch.isnan(log_q)))
+        print("nan in p = ", torch.sum(torch.isnan(log_p)))
+    
+    if show_details:
+        infinite_count_q = torch.sum(torch.logical_not(torch.isfinite(log_q)))
+        infinite_count_p = torch.sum(torch.logical_not(torch.isfinite(log_p)))
+        print("---")
+        print("infinite_count_q = ", infinite_count_q)
+        print("infinite_count_p = ", infinite_count_p)
+        assert(False)
+    
+    log_p = log_p[not_nan_ids]
+    log_q = log_q[not_nan_ids]
+    kld_with_score = log_q - beta * log_p
+
+    return kld_with_score, log_q.detach(), log_p.detach()
+
+
+
+def reverse_kld_without_score_debug(mixture_nfm, num_samples=1, beta = 1.0):
     assert(len(mixture_nfm.all_flows) == 1)
     nfm = mixture_nfm.all_flows[0]
 
@@ -263,13 +135,6 @@ def reverse_kld_without_score_debug(mixture_nfm, num_samples=1, beta = 1.0, redG
 
     if (type(flow) is nf.flows.MaskedAffineFlow) or (type(flow) is new_flows.MaskedAffineFlowThresholded) or (type(flow) is new_flows.MaskedAffineFlowSquashedSigmoid) or (type(flow) is new_flows.MaskedAffineFlowSoftClamp):
         assert(masked_affine_flow_id == mixture_nfm.number_of_flows + 1)
-
-    if redGradVarEst == "v":
-        assert(cushion_t >= 10.0)
-        z_abs = torch.abs(z)
-        z[z_abs > cushion_t] = torch.nan
-    else:
-        assert(redGradVarEst is None)
     
     z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
     
@@ -300,10 +165,8 @@ def reverse_kld_without_score_debug(mixture_nfm, num_samples=1, beta = 1.0, redG
 
     return kld_without_score, kld_with_score, z_stats_median, z_stats_high, z_stats_higher, z_stats_max
 
-def reverse_kld_without_score_for_analysis(nfm, num_samples=1, beta=1.0, show_details = False):
 
-    # invalid_value_found = True
-    # while(invalid_value_found):
+def reverse_kld_without_score(nfm, num_samples=1, beta=1.0):
 
     z, log_q = nfm.sample(num_samples)
     z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
@@ -393,11 +256,13 @@ class DiagGaussian(nf.distributions.BaseDistribution):
         )
         return log_p
 
+
 class DiagStudentT(nf.distributions.BaseDistribution):
     """
     Standard StudentT with trainable degrees of freedom in each dimension
     """
 
+    # if trainable=False, then only the degree-of-freedom nu will be learnt
     def __init__(self, shape, initial_loc = None, trainable=True):
         """Constructor
 

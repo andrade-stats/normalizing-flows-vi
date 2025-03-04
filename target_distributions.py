@@ -17,6 +17,170 @@ import math
 
 EPSILON = 10 ** -6 # to ensure strict positiveness
 
+from normflows.distributions import Target
+
+class VITarget(Target):
+
+    # rename log_prob to log_joint
+    def log_prob(self, z):
+        return self.log_joint(z)
+
+    # used for additional positive constraints
+    def get_pos_constraint_ids(self):
+        return None
+
+class BayesianLinearRegressionModel(torch.nn.Module):
+
+    def __init__(self, p):
+        super().__init__()
+        self.linear1 = torch.nn.Linear(p, 1) # parameters
+        self.prior_variance = torch.tensor([1.0])  # treated as a constant here (for simplicity)
+    
+    def log_prior(self):
+
+        log_prior_value = torch.zeros((1))
+        for name, data in self.named_parameters():
+            # for all parameters we assume a Normal Distribution N(0, 1) as prior
+            log_prior_value += torch.sum(Normal(torch.zeros_like(data),  torch.ones_like(data) * torch.sqrt(self.prior_variance)).log_prob(data))
+        
+        return log_prior_value
+      
+    def forward(self, x):
+        y = self.linear1(x)
+        return y
+
+
+class BayesianLinearRegressionJoint(VITarget):
+            
+    def __init__(self, X, y, sigma_squared):
+        super().__init__()
+
+        self.X = X
+        self.y = y
+        self.sigma_squared = sigma_squared
+        
+        self.data_dim = self.X.shape[1]
+        self.n = self.X.shape[0]
+        self.d = self.data_dim * h + h + h + 1 # count of all parameters
+
+
+    # specifies the joint p(D, theta)
+    # here z is a matrix: number of samples x dimension of theta
+    def log_joint(self, theta):
+        assert(z.shape[1] == self.d + 1) # dimension
+        assert(torch.sum(torch.isnan(z)) == 0)
+
+        nr_samples = z.shape[0]
+
+        model = ModelClass()
+
+        all_log_joint_probs = []
+
+        # evalute likelihood and prior for each model
+        for i in range(nr_samples):
+            parameters = z[i]
+            torch.nn.utils.vector_to_parameters(parameters, model.parameters())
+            mean_prediction = model(X)
+            log_likelihood_each_observation = torch.distributions.normal.Normal(loc = mean_prediction, scale = torch.sqrt(self.sigma_squared)).log_prob(self.y.reshape(-1,1))
+            assert(log_likelihood_each_observation.shape[0] == self.X.shape[0]) 
+
+            # print("log_likelihood_each_observation = ", log_likelihood_each_observation.shape)
+            log_likelihood = torch.sum(log_likelihood_each_observation, axis = 0)
+            all_log_joint_probs.append(log_likelihood + model.log_prior())
+
+        assert(log_likelihood.shape[0] == z.shape[0])
+        assert(log_likelihood.shape == log_prior.shape)
+        return log_prior + log_likelihood
+        
+
+
+
+# a Bayesian Neural Network for regression with one hidden layer
+class BNN(VITarget):
+    
+    def __init__(self, X, y, h = 50, prior_scale = 3.0):
+        super().__init__()
+        self.scale = scale
+        self.other_dim = dim - 1
+        self.vdist = torch.distributions.normal.Normal(0,scale)
+        
+        self.X = X
+        self.y = y
+        
+        self.data_dim = self.X.shape[1]
+        self.n = self.X.shape[0]
+        self.d = self.data_dim * h + h + h + 1 # count of all parameters
+
+        sigma = (torch.linalg.inv(invSigma)).cpu().numpy()
+        mst = scipy.stats.multivariate_t(loc = numpy.zeros(self.n), shape = sigma, df = 1.0)
+        y_as_matrix = self.y.cpu().numpy()
+        y_as_matrix = y_as_matrix.reshape((1,-1))
+        true_log_marginal_with_scipy = mst.logpdf(y_as_matrix)
+        assert(sigma.shape[0] == sigma.shape[1])
+        assert(sigma.shape[0] == y.shape[0])
+        assert(torch.isclose(torch.tensor(self.true_log_marginal), torch.tensor(true_log_marginal_with_scipy)))
+        
+        return
+
+    
+    # specifies the joint p(D, theta)
+    # here z is a matrix: number of samples x dimension of theta
+    def log_prob(self, z):
+        # assert(z.shape[0] >= 256) # Monte Carlo Samples
+        assert(z.shape[1] == self.d + 1) # dimension
+        assert(torch.sum(torch.isnan(z)) == 0)
+
+        beta = z[:, 0:self.d]
+        # assert(beta.shape[0] >= 256)
+        assert(beta.shape[1] == self.d)
+        # print(beta.shape)
+
+        sigmaSquared = z[:, self.d]
+        # print(sigmaSquared.shape)
+        # assert(False)
+        # assert(sigmaSquared.shape[0] >= 256)
+        
+        log_prior = densities.get_log_prob_inv_gamma(sigmaSquared, alpha = torch.tensor(0.5), beta = torch.tensor(0.5))
+
+        # print("beta = ", beta.shape)
+        # print("sigmaSquared = ", sigmaSquared.shape)
+
+        log_prior_normal = torch.distributions.normal.Normal(loc = torch.zeros_like(beta), scale = torch.sqrt(sigmaSquared.reshape(-1,1))).log_prob(beta)
+        assert(log_prior_normal.shape[1] == self.d)
+        # assert(log_prior_normal.shape[0] >= 256)
+
+        log_prior_normal_each_sample = torch.sum(log_prior_normal, axis = 1)
+
+        # print("log_prior_normal_each_sample = ", log_prior_normal_each_sample.shape)
+        # print("log_prior = ", log_prior.shape)
+        log_prior += log_prior_normal_each_sample
+
+        assert(torch.sum(torch.isnan(self.X)) == 0)
+        assert(torch.sum(torch.isnan(beta)) == 0)
+
+        assert(torch.all(torch.isfinite(sigmaSquared)))
+        assert(torch.all(torch.isfinite(beta)))
+
+        mu = self.X @ beta.t()
+
+        # print("mu.shape = ", mu.shape)
+        # print("self.y = ", self.y.shape)
+        assert(torch.sum(torch.isnan(mu)) == 0)
+        log_likelihood_each_observation = torch.distributions.normal.Normal(loc = mu, scale = torch.sqrt(sigmaSquared)).log_prob(self.y.reshape(-1,1))
+        assert(log_likelihood_each_observation.shape[0] == self.X.shape[0]) # and log_likelihood_each_observation.shape[1] >= 256)
+
+        # print("log_likelihood_each_observation = ", log_likelihood_each_observation.shape)
+        log_likelihood = torch.sum(log_likelihood_each_observation, axis = 0)
+
+        assert(log_likelihood.shape[0] == z.shape[0])
+        assert(log_likelihood.shape == log_prior.shape)
+        return log_prior + log_likelihood
+
+    
+
+
+
+
 # CHECKED
 # Funnel Distribution as in "Slice sampling", Neal 2003
 class Funnel(Target):
