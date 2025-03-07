@@ -9,15 +9,21 @@
 
 ## Preparation
 
+1. Create experiment environment using e.g. conda as follows
+```bash
+conda create -n newExps python=3.9
+conda activate newExps
+```
+
+2. Install necessary packages
 ```bash
 pip install GPUtil
 pip install normflows
 ```
 
-1. Create experiment environment using e.g. conda as follows
+3. Create folders for logging and models
 ```bash
-conda create -n newExps python=3.9
-conda activate newExps
+mkdir all_results; mkdir all_trained_models
 ```
 
 ## Usage (Basic Example Workflow)

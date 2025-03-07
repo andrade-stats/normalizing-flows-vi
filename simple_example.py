@@ -59,7 +59,7 @@ else:
 flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of_flows, learn_mixture_weights, initial_loc_spec, use_student_base, use_LOFT, hidden_layer_size_spec)
 
 
-MAX_ITERATIONS = 50000 # 100000
+MAX_ITERATIONS = 100000 # 100000
 LEARNING_RATE = 10 ** (-4)
 DIVERGENCE = "reverse_kld_without_score"
 
@@ -72,9 +72,9 @@ DIVERGENCE = "reverse_kld_without_score"
 commons.INFO_STR = target.__class__.__name__ + "_" + VARIATIONAL_APPROXIMATION_TYPE + "_" + str(MAX_ITERATIONS) + "maxit_" + str(DATA_SAMPLES) + "_" + str(DATA_DIM) + "synthetic_data"
 
 # train normalizing flow
-# nr_optimization_steps, best_true_loss = train(flows_mixture, max_iter = MAX_ITERATIONS, learning_rate = LEARNING_RATE, divergence = DIVERGENCE)
-# print("nr_optimization_steps = ", nr_optimization_steps)
-# print("best_true_loss = ", best_true_loss)
+nr_optimization_steps, best_true_loss = train(flows_mixture, max_iter = MAX_ITERATIONS, learning_rate = LEARNING_RATE, divergence = DIVERGENCE)
+print("nr_optimization_steps = ", nr_optimization_steps)
+print("best_true_loss = ", best_true_loss)
 
 # load normalizing flow (the one with minimal training loss)
 flows_mixture.load_state_dict(torch.load(commons.get_model_filename_best(), map_location = commons.DEVICE))
