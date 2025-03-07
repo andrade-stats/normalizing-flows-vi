@@ -33,10 +33,10 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
         self.data_dim = self.X.shape[1]
         self.n = self.X.shape[0]
 
-        # constants
-        self.likelihood_variance = commons.moveToDevice(torch.tensor([likelihood_variance]))  # treated as a constant here (for simplicity)
-        self.prior_variance = commons.moveToDevice(torch.tensor([1.0]))
-        
+        # register non-parameters (this is useful for example to ensure that their are also moved to the GPU if you call model.cuda() etc.)
+        self.register_buffer('likelihood_variance', torch.tensor([likelihood_variance]))  # treated as a constant here (for simplicity)
+        self.register_buffer('prior_variance', torch.tensor([1.0]))
+
         # specify dimension of each parameter
         self.idm = IndexManager(beta = self.data_dim, intercept = 1)
         self.d = self.idm.d # total number of parameters

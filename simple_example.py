@@ -20,7 +20,7 @@ X, y = commons.get_pytorch_tensors(X, y)
 
 # target = HorseshoeRegression(X, y)
 target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
-target =  commons.moveToDevice(target)
+
 
 # VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
 VARIATIONAL_APPROXIMATION_TYPE = "GAUSSIAN_MEAN_FIELD"
@@ -58,6 +58,8 @@ else:
     assert(False)
 
 flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of_flows, learn_mixture_weights, initial_loc_spec, use_student_base, use_LOFT, hidden_layer_size_spec)
+
+assert(False)
 
 
 MAX_ITERATIONS = 100000 # 100000
