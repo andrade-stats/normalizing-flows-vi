@@ -60,7 +60,7 @@ else:
 flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of_flows, learn_mixture_weights, initial_loc_spec, use_student_base, use_LOFT, hidden_layer_size_spec)
 
 
-MAX_ITERATIONS = 10 # 50000
+MAX_ITERATIONS = 50000
 LEARNING_RATE = 10 ** (-4)
 DIVERGENCE = "reverse_kld_without_score"
 
@@ -81,9 +81,9 @@ flows_mixture.eval()
 # print("marginal likelihood estimate = ", mll)
 
 posterior_samples, _, _ = estimators.get_posterior_samples(flows_mixture)
-print("posterior_samples = ", posterior_samples)
+# print("posterior_samples = ", posterior_samples)
 beta_samples = posterior_samples["beta"]
-print("beta_samples = ", beta_samples.shape)
+# print("beta_samples = ", beta_samples.shape)
 
 beta_posterior_mean = np.mean(beta_samples, axis = 0)
 print("E[beta | D] = ", beta_posterior_mean)
