@@ -60,14 +60,9 @@ else:
 flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of_flows, learn_mixture_weights, initial_loc_spec, use_student_base, use_LOFT, hidden_layer_size_spec)
 
 
-MAX_ITERATIONS = 100000 # 100000
+MAX_ITERATIONS = 10 # 50000
 LEARNING_RATE = 10 ** (-4)
 DIVERGENCE = "reverse_kld_without_score"
-
-# MAX_ITERATIONS = 60000
-# LEARNING_RATE = 10 ** (-6)
-# DIVERGENCE = "reverse_kld"
-
 
 # specify name of file where model is saved in "all_trained_models/"
 commons.INFO_STR = target.__class__.__name__ + "_" + VARIATIONAL_APPROXIMATION_TYPE + "_" + str(MAX_ITERATIONS) + "maxit_" + str(DATA_SAMPLES) + "_" + str(DATA_DIM) + "synthetic_data"
