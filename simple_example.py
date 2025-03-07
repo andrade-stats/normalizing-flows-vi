@@ -13,7 +13,7 @@ commons.DATA_TYPE = "double" # recommend using double instead of float
 commons.setGPU()  # sets GPU if available otherwise uses CPU
 torch.manual_seed(432432)
 
-DATA_SAMPLES = 10
+DATA_SAMPLES = 1000
 DATA_DIM = 10
 X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
 X, y = commons.get_pytorch_tensors(X, y)
