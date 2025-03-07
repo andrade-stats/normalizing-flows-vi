@@ -14,12 +14,12 @@ commons.setGPU()  # sets GPU if available otherwise uses CPU
 torch.manual_seed(432432)
 
 DATA_SAMPLES = 1000
-DATA_DIM = 10
+DATA_DIM = 1000
 X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
 X, y = commons.get_pytorch_tensors(X, y)
 
-# target = HorseshoeRegression(X, y)
-target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
+target = HorseshoeRegression(X, y)
+# target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
 
 
 VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
@@ -82,11 +82,11 @@ flows_mixture.eval()
 # mll = estimators.importance_sampling(flows_mixture)
 # print("marginal likelihood estimate = ", mll)
 
-posterior_samples, _, _ = estimators.get_posterior_samples(flows_mixture)
-# print("posterior_samples = ", posterior_samples)
-beta_samples = posterior_samples["beta"]
-# print("beta_samples = ", beta_samples.shape)
+# posterior_samples, _, _ = estimators.get_posterior_samples(flows_mixture)
+# # print("posterior_samples = ", posterior_samples)
+# beta_samples = posterior_samples["beta"]
+# # print("beta_samples = ", beta_samples.shape)
 
-beta_posterior_mean = np.mean(beta_samples, axis = 0)
-print("E[beta | D] = ", beta_posterior_mean)
-print("true_beta = ", true_beta)
+# beta_posterior_mean = np.mean(beta_samples, axis = 0)
+# print("E[beta | D] = ", beta_posterior_mean)
+# print("true_beta = ", true_beta)

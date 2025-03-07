@@ -100,11 +100,6 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
     
 
 
-
-
-
-
-
 # CHECKED
 class HorseshoeRegression(Target):
 
@@ -206,6 +201,11 @@ class HorseshoeRegression(Target):
         assert(log_likelihood.shape == log_prior.shape)
         return log_prior + log_likelihood
     
+
+
+
+
+
 
 
 
