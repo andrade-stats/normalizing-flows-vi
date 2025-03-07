@@ -20,6 +20,7 @@ X, y = commons.get_pytorch_tensors(X, y)
 
 # target = HorseshoeRegression(X, y)
 target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
+target =  commons.moveToDevice(target)
 
 # VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
 VARIATIONAL_APPROXIMATION_TYPE = "GAUSSIAN_MEAN_FIELD"
