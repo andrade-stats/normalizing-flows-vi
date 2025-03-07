@@ -34,8 +34,8 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
         self.n = self.X.shape[0]
 
         # constants
-        self.likelihood_variance = torch.tensor([likelihood_variance])  # treated as a constant here (for simplicity)
-        self.prior_variance = torch.tensor([1.0]) 
+        self.likelihood_variance = commons.moveToDevice(torch.tensor([likelihood_variance]))  # treated as a constant here (for simplicity)
+        self.prior_variance = commons.moveToDevice(torch.tensor([1.0]))
         
         # specify dimension of each parameter
         self.idm = IndexManager(beta = self.data_dim, intercept = 1)
