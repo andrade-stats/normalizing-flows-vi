@@ -66,6 +66,8 @@ DIVERGENCE = "reverse_kld_without_score"
 
 # specify name of file where model is saved in "all_trained_models/"
 commons.INFO_STR = target.__class__.__name__ + "_" + VARIATIONAL_APPROXIMATION_TYPE + "_" + str(MAX_ITERATIONS) + "maxit_" + str(DATA_SAMPLES) + "_" + str(DATA_DIM) + "synthetic_data"
+print("commons.INFO_STR = ", commons.INFO_STR)
+
 
 # train normalizing flow
 nr_optimization_steps, best_true_loss = train(flows_mixture, max_iter = MAX_ITERATIONS, learning_rate = LEARNING_RATE, divergence = DIVERGENCE)
