@@ -18,15 +18,11 @@ THINNING_MCMC = 10
 ALL_RESULTS = "all_results/"
 ALL_MODELS = "all_trained_models/"
 
-# ALL_RESULTS = "all_results_new2/"
-# ALL_MODELS = "all_trained_models_new/"
-
 def get_model_filename():
     return ALL_MODELS + INFO_STR + "_q_model"
 
 def get_model_filename_best():
     best_model_filename_str = ALL_MODELS + INFO_STR + "_q_model_best"
-    print("best model filename = ", best_model_filename_str)
     return best_model_filename_str
 
 def moveToDevice(obj):
@@ -41,7 +37,7 @@ def moveToDevice(obj):
 def saveStatistics(obj, filenameSuffix):
     filename = ALL_RESULTS + INFO_STR + "_" + filenameSuffix
     numpy.save(filename, obj)
-    print("successfully saved to ", filename)
+    # print("successfully saved to ", filename)
     return
 
 def loadStatistics(filenameSuffix, info_str = None):
@@ -209,3 +205,11 @@ def filterInfValues(all_ELBO):
         all_ELBO[numpy.isinf(all_ELBO)] = numpy.nan
         print("witout inf values = ", all_ELBO)
     return all_ELBO
+
+
+def get_pytorch_tensors(X, y):
+    X = moveToDevice(torch.from_numpy(X))
+    y = moveToDevice(torch.from_numpy(y))
+    y = y.reshape(-1, 1)
+
+    return X, y

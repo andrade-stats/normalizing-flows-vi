@@ -70,9 +70,11 @@ def reverse_kld(nfm, num_samples=1, beta=1.0, show_details = False):
         Estimate of the reverse KL divergence averaged over latent samples
     """
     
+    #  here z correponds to theta
     z, log_q = nfm.sample(num_samples)
     z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
 
+    # get log(p(theta, D))
     log_p = nfm.p.log_prob(z)
     
     
@@ -307,7 +309,7 @@ class DiagStudentT(nf.distributions.BaseDistribution):
         log_p = torch.sum(log_p, dim = 1)
 
         assert(z.shape[0] == num_samples) # batch size
-        assert(z.shape[1] >= 10)
+        assert(z.shape[1] >= 2) # theta should be at least of dimension 2
 
         return z, log_p
 

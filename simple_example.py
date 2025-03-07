@@ -1,52 +1,28 @@
 
 import torch
+import commons
 
-from normalizing_flows_core import FlowsMixture
-import target_distributions
+import numpy as np
+import synthetic_data
+import syntheticData
+from normalizing_flows_core import FlowsMixture, train
+from target_distributions import BayesianLinearRegressionSimple, HorseshoeRegression
+import estimators
 
-# this is an example
-
-
-X, y, _ , _ = synthetic_data.lasso_linear(n = 20, d = 8)
-
-
-setting["nr_mixture_components"] = 1
-setting["init"] = "zeros"
-setting["lr_exp"] = 4
-
-setting["l2_strength"] = 0.0
-setting["annealing"] = "no"
-
-setting["data_type"] = "double"
-
-
-setting["no_act_norm"] = "yes"
-setting["nr_flows"] = nr_flows
-setting["nr_cushions"] = 1
-setting["loft_t"] = 100.0
-setting["divergence"] = "reverse_kld_ws_debug"
-
-# divergence = "reverse_kld_without_score", num_samples = 2 ** 8
-
-setting["trainable_base"] = "no"
-setting["cushion_type"] = "LOFT"
-setting["realNVP_threshold"] = 0.1
-setting["realNVP_variation"] = "var19"
-setting["scaleShiftLayer"] = "ssL"
-if method == "proposed_withStudentT":
-    setting["use_student_base"] = "yes"
-
-setting["max_iterations"] = 30000
-
-args = getArgumentParser(**setting)
-
-commons.DATA_TYPE = args.data_type
-commons.setGPU()
+commons.DATA_TYPE = "double" # recommend using double instead of float
+commons.setGPU()  # sets GPU if available otherwise uses CPU
 torch.manual_seed(432432)
 
-target, flows_mixture = initialize_target_and_flow(args, initialize)
+DATA_SAMPLES = 1000
+DATA_DIM = 10
+X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
+X, y = commons.get_pytorch_tensors(X, y)
 
-VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
+# target = HorseshoeRegression(X, y)
+target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
+
+# VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
+VARIATIONAL_APPROXIMATION_TYPE = "GAUSSIAN_MEAN_FIELD"
 
 if VARIATIONAL_APPROXIMATION_TYPE == "RealNVP":
     nr_mixture_components = 1
@@ -82,29 +58,37 @@ else:
 
 flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of_flows, learn_mixture_weights, initial_loc_spec, use_student_base, use_LOFT, hidden_layer_size_spec)
 
-model = target_distributions.LinearRegressionModel(3)
 
-p = model.log_prior()
-print("p = ", p)
+MAX_ITERATIONS = 50000 # 100000
+LEARNING_RATE = 10 ** (-4)
+DIVERGENCE = "reverse_kld_without_score"
 
-
-
-
-# model1 = LinearRegressionModel(3)
-# model2 = LinearRegressionModel(3)
-
-# param_vec1 = torch.nn.utils.parameters_to_vector(model1.parameters())
-# param_vec2 = torch.nn.utils.parameters_to_vector(model2.parameters())
-
-# print("param_vec1 = ", param_vec1)
-# print("param_vec2 = ", param_vec2)
+# MAX_ITERATIONS = 60000
+# LEARNING_RATE = 10 ** (-6)
+# DIVERGENCE = "reverse_kld"
 
 
-# torch.nn.utils.vector_to_parameters(param_vec1, model2.parameters())
+# specify name of file where model is saved in "all_trained_models/"
+commons.INFO_STR = target.__class__.__name__ + "_" + VARIATIONAL_APPROXIMATION_TYPE + "_" + str(MAX_ITERATIONS) + "maxit_" + str(DATA_SAMPLES) + "_" + str(DATA_DIM) + "synthetic_data"
 
-# param_vec1 = torch.nn.utils.parameters_to_vector(model1.parameters())
-# param_vec2 = torch.nn.utils.parameters_to_vector(model2.parameters())
+# train normalizing flow
+# nr_optimization_steps, best_true_loss = train(flows_mixture, max_iter = MAX_ITERATIONS, learning_rate = LEARNING_RATE, divergence = DIVERGENCE)
+# print("nr_optimization_steps = ", nr_optimization_steps)
+# print("best_true_loss = ", best_true_loss)
 
-# print("param_vec1 = ", param_vec1)
-# print("param_vec2 = ", param_vec2)
+# load normalizing flow (the one with minimal training loss)
+flows_mixture.load_state_dict(torch.load(commons.get_model_filename_best(), map_location = commons.DEVICE))
+flows_mixture.eval()
 
+# use samples form normalizing flow for estimating marginal likelihood etc.
+# mll = estimators.importance_sampling(flows_mixture)
+# print("marginal likelihood estimate = ", mll)
+
+posterior_samples, _, _ = estimators.get_posterior_samples(flows_mixture)
+print("posterior_samples = ", posterior_samples)
+beta_samples = posterior_samples["beta"]
+print("beta_samples = ", beta_samples.shape)
+
+beta_posterior_mean = np.mean(beta_samples, axis = 0)
+print("E[beta | D] = ", beta_posterior_mean)
+print("true_beta = ", true_beta)

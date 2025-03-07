@@ -23,7 +23,7 @@ def getNormalizingFlow(target, flow_type, number_of_flows, initial_loc_base = No
 
     if hidden_layer_size_spec == "double":
         hidden_layer_size = 2 * latent_size
-    else:
+    elif hidden_layer_size_spec is not None:
         hidden_layer_size = int(hidden_layer_size_spec)
         assert(hidden_layer_size > 10 and hidden_layer_size < 1000)
     
@@ -80,8 +80,8 @@ def getNormalizingFlow(target, flow_type, number_of_flows, initial_loc_base = No
         # use a final affine transformation, instead of trainable location and scale of base distribution
         flows += [AffineConstFlow(latent_size)]
     
-    if target.get_pos_contraint_ids() is not None:
-        flows += [new_flows.PositiveConstraintLayer(target.get_pos_contraint_ids(), target.d)]
+    if target.pos_constraint_ids is not None:
+        flows += [new_flows.PositiveConstraintLayer(target.pos_constraint_ids, target.d)]
     
     if use_student_base:
         q0 = core_adjusted.DiagStudentT(target.d, initial_loc = initial_loc_base, trainable = trainable_base) 
@@ -104,7 +104,7 @@ class FlowsMixture(torch.nn.Module):
         super().__init__()
 
         self.d = target.d
-        # self.p = commons.moveToDevice(target)
+        self.p = commons.moveToDevice(target)  # register the target distribution as "p" (naming as in normflows package)
         self.number_of_flows = number_of_flows
 
         uniform_dist = torch.ones(nr_mixture_components) / nr_mixture_components
@@ -197,7 +197,7 @@ class FlowsMixture(torch.nn.Module):
 
 
 
-def train(nfm, max_iter, learning_rate = None, divergence = None, num_mc_samples = 2 ** 8, annealing = False, anneal_iter = None, record_stats = True):
+def train(nfm, max_iter, learning_rate = 10 ** (-4), divergence = "reverse_kld_without_score", num_mc_samples = 2 ** 8, annealing = False, anneal_iter = None, record_stats = True):
 
     print("max_iter = ", max_iter)
     print("annealing = ", annealing)
@@ -205,9 +205,9 @@ def train(nfm, max_iter, learning_rate = None, divergence = None, num_mc_samples
 
     if max_iter < 50:
         show_iter = 1
-    elif max_iter < 100:
+    elif max_iter <= 100:
         show_iter = 10
-    elif max_iter < 1000:
+    elif max_iter <= 1000:
         show_iter = 50
     else:
         show_iter = 500
@@ -281,7 +281,7 @@ def train(nfm, max_iter, learning_rate = None, divergence = None, num_mc_samples
         if ~(torch.isnan(loss) | torch.isinf(loss)):
 
             if (it > (max_iter / 2)) and ~(torch.isnan(true_loss) | torch.isinf(true_loss)) and (true_loss < current_best_true_loss):
-                print("update best model")
+                # print("update best model")
                 torch.save(nfm.state_dict(), commons.get_model_filename_best())
                 current_best_true_loss = true_loss.detach().to('cpu')
 

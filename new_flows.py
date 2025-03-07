@@ -21,7 +21,7 @@ class TrainableLOFTLayer(Flow):
 
     def forward(self, z):
         assert(z.shape[0] >= MIN_NR_MC_SAMPLES) # batch size
-        assert(z.shape[1] >= 10) # dimension
+        assert(z.shape[1] >= 2)  # theta should be at least of dimension 2
 
         t = self.get_t()
 
@@ -46,7 +46,7 @@ class TrainableLOFTLayer(Flow):
     
     def inverse(self, z):
         assert(z.shape[0] >= MIN_NR_MC_SAMPLES) # Monte Carlo Samples
-        assert(z.shape[1] >= 10) # dimension
+        assert(z.shape[1] >= 2) # theta should be at least of dimension 2
 
         t = self.get_t()
 

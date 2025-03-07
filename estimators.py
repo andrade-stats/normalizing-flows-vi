@@ -6,6 +6,7 @@ import commons
 
 NUM_SAMPLES = 20000
 
+# estimates the marginal likelihood using importance sampling with q(=normalizing flow) as the proposal distribution
 def importance_sampling(nfm, nr_samples = NUM_SAMPLES):
 
     z,log_q = nfm.sample(num_samples = nr_samples)
@@ -16,6 +17,29 @@ def importance_sampling(nfm, nr_samples = NUM_SAMPLES):
     log_is_estimate = log_mC - torch.log(torch.tensor(nr_samples))
 
     return log_is_estimate
+
+# get posterior samples using the approximation(=normalizing flow)
+def get_posterior_samples(nfm, nr_samples = NUM_SAMPLES):
+    with torch.no_grad():
+        z,log_q = nfm.sample(nr_samples)
+
+    z,log_q,_, _ = core_adjusted.filter_illegal_values_from_samples(z, log_q)
+    
+    target = nfm.p
+    assert(z.shape[0] >= 256) # Monte Carlo Samples
+    assert(z.shape[1] == target.d)
+
+    param_to_samples = {}
+
+    for param in target.idm.get_all_param_names():
+        samples = target.idm.extract_samples(z, param)
+        assert(torch.all(torch.isfinite(samples)))
+        param_to_samples[param] = samples.cpu().numpy()
+
+    log_q = log_q.cpu().numpy()
+    log_p = target.log_prob(z).cpu().numpy()
+
+    return param_to_samples, log_p, log_q
 
 
 def getRepeatedEstimates(nfm, type, nr_samples = NUM_SAMPLES):

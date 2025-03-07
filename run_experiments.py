@@ -513,7 +513,7 @@ if __name__ == "__main__":
     print("args.divergence = ", args.divergence)
     startTime = time.time()
 
-    LEARNING_RATE = 10 **(-args.lr_exp)
+    LEARNING_RATE = 10 ** (-args.lr_exp)
     
     print("LEARNING_RATE = ", LEARNING_RATE)
     print("max_iterations = ", args.max_iterations)
