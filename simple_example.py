@@ -63,6 +63,8 @@ MAX_ITERATIONS = 100000 # 100000
 LEARNING_RATE = 10 ** (-4)
 DIVERGENCE = "reverse_kld_without_score"
 
+# NEW CHANGE 
+
 # MAX_ITERATIONS = 60000
 # LEARNING_RATE = 10 ** (-6)
 # DIVERGENCE = "reverse_kld"
