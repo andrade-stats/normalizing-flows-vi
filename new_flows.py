@@ -133,39 +133,6 @@ class PositiveConstraintLayer(Flow):
         
         return new_value, log_derivative
 
-# def leakyClamp(value, minAlpha, maxAlpha):
-#     reLU = torch.nn.LeakyReLU()
-#     leftTruncation = reLU(value + minAlpha) - minAlpha
-#     rightTruncation = - (reLU(-leftTruncation + maxAlpha) - maxAlpha)
-#     return rightTruncation
-
-
-# def softClampAsymNew(value, alpha, minValue):
-#     reLU = torch.nn.ReLU()
-#     posValues = (2.0 * alpha / torch.pi) * torch.arctan(reLU(value) / alpha)
-#     negValues = - (2.0 / torch.pi) * reLU(-value)
-#     values = negValues + posValues
-#     return torch.clamp(values,  min = minValue)
-
-
-# def softClampAsymAdvanced(value, negAlpha, posAlpha):
-#     reLU = torch.nn.ReLU()
-#     posValues = (2.0 * posAlpha / torch.pi) * torch.arctan(reLU(value) / posAlpha)
-#     negValues = (2.0 * negAlpha / torch.pi) * torch.arctan(-reLU(-value) / negAlpha)
-#     return negValues + posValues
-
-
-# def softClamp(value, alpha):
-#     return (2.0 * alpha / torch.pi) * torch.arctan(value / alpha)
-
-
-def softClampAsymAdvanced_differentImpl(value, negAlpha, posAlpha):
-    posValues = 0.5 * (torch.sign(value) + 1.0)
-    negValues = 0.5 * (-torch.sign(value) + 1.0)
-
-    posValues = posValues * (2.0 * posAlpha / torch.pi) * torch.arctan(value / posAlpha)
-    negValues = negValues * (2.0 * negAlpha / torch.pi) * torch.arctan(value / negAlpha)
-    return negValues + posValues
 
 
 # Part of the code here is adapated from normflows package
@@ -235,10 +202,10 @@ class MaskedAffineFlowThresholded(Flow):
         
         if self.variation == "symmetric":
             # RealNVP variation as proposed in "GUIDED IMAGE GENERATION WITH CONDITIONAL INVERTIBLE NEURAL NETWORKS" https://arxiv.org/pdf/1907.02392.pdf
-            scale = softClampAsymAdvanced_differentImpl(scale, negAlpha = self.threshold, posAlpha = self.threshold)
+            scale = softClampAsym(scale, negAlpha = self.threshold, posAlpha = self.threshold)
         elif self.variation == "asymmetric":
             # proposed clippling method
-            scale = softClampAsymAdvanced_differentImpl(scale, negAlpha = 2.0, posAlpha = self.threshold)
+            scale = softClampAsym(scale, negAlpha = 2.0, posAlpha = self.threshold)
         elif self.variation == "tanh":
             # used by ATAF method
             scale = torch.tanh(scale)
@@ -264,3 +231,12 @@ class MaskedAffineFlowThresholded(Flow):
 
 
 
+
+
+def softClampAsym(value, negAlpha, posAlpha):
+    posValues = 0.5 * (torch.sign(value) + 1.0)
+    negValues = 0.5 * (-torch.sign(value) + 1.0)
+
+    posValues = posValues * (2.0 * posAlpha / torch.pi) * torch.arctan(value / posAlpha)
+    negValues = negValues * (2.0 * negAlpha / torch.pi) * torch.arctan(value / negAlpha)
+    return negValues + posValues

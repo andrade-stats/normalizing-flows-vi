@@ -19,17 +19,18 @@ torch.manual_seed(432432)
 
 DATA_SAMPLES = 10
 DATA_DIM = 10
-# X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
-# X, y = commons.get_pytorch_tensors(X, y)
+X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
+X, y = commons.get_pytorch_tensors(X, y)
+
+target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
 
 # target = HorseshoeRegression(X, y) # n = 1000, data_dim = 1000 : around 4 hours with Ada GPU
-# target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
 # target = ConjugateBayesianLinearRegression(X, y)
 # target = BayesianLasso(X, y)
 # target = Funnel(10)
 # target = MultivariateNormalMixture(10)
 # target = MultivariateNormalMixture(10)
-target = MultivariateStudentT(10)
+# target = MultivariateStudentT(10)
 
 # rng = np.random.default_rng(293309)
 # X, y, true_beta , _ , _ = synthetic_data.get_sample_data_logistic_regression(rng, data_size = DATA_SAMPLES, data_dim = DATA_DIM)
@@ -39,8 +40,8 @@ target = MultivariateStudentT(10)
 
 # *************** Specify Variational Approximation Family and Optimization Parameters *************
 
-# VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
-VARIATIONAL_APPROXIMATION_TYPE = "GAUSSIAN_MEAN_FIELD"
+VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
+# VARIATIONAL_APPROXIMATION_TYPE = "GAUSSIAN_MEAN_FIELD"
 
 if VARIATIONAL_APPROXIMATION_TYPE == "RealNVP":
     nr_mixture_components = 1
