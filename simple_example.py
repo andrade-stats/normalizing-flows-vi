@@ -80,7 +80,7 @@ flows_mixture = FlowsMixture(target, nr_mixture_components, flow_type, number_of
 
 # *************** Run Training of Normalizing Flow and Evaluation *************
 
-MAX_ITERATIONS = 50000  # this is problem (dimension) dependent
+MAX_ITERATIONS = 100  # this is problem (dimension) dependent, recommend >= 50000
 LEARNING_RATE = 10 ** (-4) # recommended default value
 DIVERGENCE = "reverse_kld_without_score" # recommend using reverse KLD without score (sometimes referred to as Path Gradients)
 
