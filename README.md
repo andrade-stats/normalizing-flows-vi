@@ -1,4 +1,11 @@
-# partial-deterministic-normalizing-flows
+# Tutorial for High-dimensional Variational Inference
+
+Implements the models and methods proposed in [Stabilizing Training of Affine Coupling Layers for High-dimensional Variational Inference](https://doi.org/10.1088/2632-2153/ad9a39), Machine Learning: Science and Technology, 2024.
+Most of the code should be scalabe to up to around 10000 dimensions.
+However, for high-dimensions (d > 500) recommend usage of GPU.
+
+Part of the code here is adapated from the normflows package
+https://github.com/VincentStimper/normalizing-flows
 
 ## Requirements
 
@@ -15,32 +22,27 @@ conda create -n newExps python=3.9
 conda activate newExps
 ```
 
-2. Install necessary packages
+2. Install necessary packages (like Pytorch) and the following
 ```bash
-pip install GPUtil
-pip install normflows
+pip install -U numpy scikit-learn GPUtil normflows tqdm matplotlib pandas
 ```
 
 3. Create folders for logging and models
 ```bash
-mkdir all_results; mkdir all_trained_models
+mkdir all_results && mkdir all_trained_models
 ```
 
-## Usage (Basic Example Workflow)
+## Usage 
 
--------------------------------------------
-1. Prepare Data
--------------------------------------------
-Create artificial data for (logistic) regression models
-```bash
-python syntheticData.py
-```
-
-Synthetic datasets are saved into folder "synthetic_data/."
-(real datasets should be saved into folder "data/." for preparing the colon data set use "prepare_colon_data.py")
+See *recent_vi_methods_tutorial.pdf* for an introduction, and *simple_example.py* for various examples.
 
 
-# Part of the code here is adapated from normflows package
-# https://github.com/VincentStimper/normalizing-flows
+## Citation 
+
+If you are using part of the code in your work please cite the following papers:
+
+Andrade, Daniel. "Stabilizing training of affine coupling layers for high-dimensional variational inference." Machine Learning: Science and Technology 5.4 (2024): 045066, https://doi.org/10.1088/2632-2153/ad9a39
+
+Stimper et al., (2023). normflows: A PyTorch Package for Normalizing Flows. Journal of Open Source Software, 8(86), 5361, https://doi.org/10.21105/joss.05361
 
 
