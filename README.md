@@ -41,8 +41,8 @@ See *recent_vi_methods_tutorial.pdf* for an introduction, and *simple_example.py
 
 If you are using part of the code in your work please cite the following papers:
 
-Andrade, Daniel. "Stabilizing training of affine coupling layers for high-dimensional variational inference." Machine Learning: Science and Technology 5.4 (2024): 045066, https://doi.org/10.1088/2632-2153/ad9a39
+- Andrade, Daniel. "Stabilizing training of affine coupling layers for high-dimensional variational inference." Machine Learning: Science and Technology 5.4 (2024): 045066, https://doi.org/10.1088/2632-2153/ad9a39
 
-Stimper et al., (2023). normflows: A PyTorch Package for Normalizing Flows. Journal of Open Source Software, 8(86), 5361, https://doi.org/10.21105/joss.05361
+- Stimper et al., (2023). normflows: A PyTorch Package for Normalizing Flows. Journal of Open Source Software, 8(86), 5361, https://doi.org/10.21105/joss.05361
 
 
