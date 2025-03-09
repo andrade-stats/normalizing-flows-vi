@@ -2,24 +2,26 @@
 import torch
 import commons
 
+import core_adjusted
 import numpy as np
 import synthetic_data
 import syntheticData
 from normalizing_flows_core import FlowsMixture, train
-from target_distributions import BayesianLinearRegressionSimple, HorseshoeRegression
+from target_distributions import BayesianLinearRegressionSimple, HorseshoeRegression, ConjugateBayesianLinearRegression
 import estimators
 
 commons.DATA_TYPE = "double" # recommend using double instead of float
 commons.setGPU()  # sets GPU if available otherwise uses CPU
 torch.manual_seed(432432)
 
-DATA_SAMPLES = 1000
-DATA_DIM = 1000
+DATA_SAMPLES = 10
+DATA_DIM = 10
 X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
 X, y = commons.get_pytorch_tensors(X, y)
 
-target = HorseshoeRegression(X, y)
+# target = HorseshoeRegression(X, y) # n = 1000, data_dim = 1000 : around 4 hours with Ada GPU
 # target = BayesianLinearRegressionSimple(X, y, likelihood_variance = 1.0)
+target = ConjugateBayesianLinearRegression(X, y)
 
 
 VARIATIONAL_APPROXIMATION_TYPE = "RealNVP"
@@ -79,8 +81,13 @@ flows_mixture.load_state_dict(torch.load(commons.get_model_filename_best(), map_
 flows_mixture.eval()
 
 # use samples form normalizing flow for estimating marginal likelihood etc.
-# mll = estimators.importance_sampling(flows_mixture)
-# print("marginal likelihood estimate = ", mll)
+elbo = estimators.elbo_estimate(flows_mixture, num_samples = 2000)
+print("lower bound on marginal likelihood = ", elbo)
+
+mll = estimators.importance_sampling(flows_mixture, num_samples = 2000)
+print("marginal likelihood estimate (with importance samples)= ", mll)
+
+print("true marinal likelihood = ", target.true_log_marginal)
 
 # posterior_samples, _, _ = estimators.get_posterior_samples(flows_mixture)
 # # print("posterior_samples = ", posterior_samples)

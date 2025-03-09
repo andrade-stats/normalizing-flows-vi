@@ -47,10 +47,6 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
         self.true_log_marginal = torch.nan # unknown
 
         return
-
-    
-    def get_samples_from_approx(self, posterior_approximation_nfm, num_samples):
-        assert(False)
     
 
     def log_prob(self, z):
@@ -99,6 +95,128 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
         return log_prior + log_likelihood
     
 
+
+
+# CHECKED
+class ConjugateBayesianLinearRegression(Target):
+
+    def __init__(self, X, y):
+        super().__init__()
+
+        # Data D
+        self.X =  commons.moveToDevice(X)
+        self.y = commons.moveToDevice(y)
+        
+        self.data_dim = self.X.shape[1]
+        self.n = self.X.shape[0]
+
+        # self.X, self.y, self.true_beta, self.true_bias = convert_data(X, y, true_beta, true_bias)
+        # self.d = self.X.shape[1]
+        # self.n = self.X.shape[0]
+        # self.D = self.d + 1
+        # self.pos_contraint_ids = torch.tensor([self.d])
+
+        # specify dimension of each parameter
+        self.idm = IndexManager(beta = self.data_dim, sigma_squared = 1)
+        self.d = self.idm.d # total number of parameters
+
+        # specify parameters which domain is positive
+        self.pos_constraint_ids = self.idm.get_pos_constraint_ids(["beta",  "sigma_squared"])
+
+        # for evaluation calculate analytically exact marginal likelihood
+        invSigma = self.getInvSigma()
+        self.true_log_marginal = densities.get_log_prob_multivariate_t(commons.moveToDevice(torch.zeros(self.n)), invSigma, df = torch.tensor(1.0), y = self.y.flatten()).item()
+        
+        # double-check with scipy (otherwise not necessary)
+        sigma = (torch.linalg.inv(invSigma)).cpu().numpy()
+        mst = scipy.stats.multivariate_t(loc = numpy.zeros(self.n), shape = sigma, df = 1.0)
+        y_as_matrix = self.y.cpu().numpy()
+        y_as_matrix = y_as_matrix.reshape((1,-1))
+        true_log_marginal_with_scipy = mst.logpdf(y_as_matrix)
+        assert(sigma.shape[0] == sigma.shape[1])
+        assert(sigma.shape[0] == y.shape[0])
+        assert(torch.isclose(torch.tensor(self.true_log_marginal), torch.tensor(true_log_marginal_with_scipy)))
+
+        return
+
+
+    def getInvSigma(self):
+        C = torch.linalg.inv(self.X.t() @ self.X + commons.moveToDevice(torch.eye(self.data_dim)))
+        invSigma = commons.moveToDevice(torch.eye(self.n)) - self.X @ C @ self.X.t()
+        return invSigma
+
+    
+    def log_prob(self, z):
+        nr_mc_samples = z.shape[0]
+        assert(z.shape[1] == self.d)
+        assert(torch.sum(torch.isnan(z)) == 0)
+
+        beta = self.idm.extract_samples(z, "beta")
+        sigma_squared = self.idm.extract_samples(z, "sigma_squared")
+
+        assert(torch.sum(torch.isnan(beta)) == 0)
+        assert(torch.all(torch.isfinite(beta)))
+        assert(beta.shape[1] == self.data_dim)
+        assert(torch.all(torch.isfinite(sigma_squared)))
+        
+        # ***** prior *******
+        log_prior = densities.get_log_prob_inv_gamma(sigma_squared, alpha = torch.tensor(0.5), beta = torch.tensor(0.5))
+        
+        # print("beta = ", beta.shape)
+        # print("sigma_squared = ", sigma_squared.shape)
+
+        log_prior_normal = torch.distributions.normal.Normal(loc = torch.zeros_like(beta), scale = torch.sqrt(sigma_squared)).log_prob(beta)
+        assert(log_prior_normal.shape[1] == self.data_dim and log_prior_normal.shape[0] == nr_mc_samples)
+        log_prior_normal_each_sample = torch.sum(log_prior_normal, axis = 1)
+
+        log_prior = log_prior.squeeze()
+        
+        assert(log_prior.shape == log_prior_normal_each_sample.shape)
+        log_prior += log_prior_normal_each_sample        
+
+        # ***** likelihood *******
+        mu = self.X @ beta.t()
+
+        sigma_squared = sigma_squared.squeeze()
+        # print("mu.shape = ", mu.shape)
+        # print("sigma_squared.shape = ", sigma_squared.shape)
+        # print("self.y = ", self.y.shape)
+        
+        assert(torch.sum(torch.isnan(mu)) == 0)
+        log_likelihood_each_observation = torch.distributions.normal.Normal(loc = mu, scale = torch.sqrt(sigma_squared)).log_prob(self.y)
+        assert(log_likelihood_each_observation.shape[0] == self.X.shape[0])
+        log_likelihood = torch.sum(log_likelihood_each_observation, axis = 0)
+        
+        assert(log_likelihood.shape[0] == nr_mc_samples)
+        assert(log_likelihood.shape == log_prior.shape)
+        return log_prior + log_likelihood
+
+
+    # used only for evaluation
+    def getSamplesFromTruePosterior(self, num_samples):
+        
+        y = self.y.cpu().numpy()
+        X = self.X.cpu().numpy()
+
+        invU = numpy.linalg.inv(X.transpose() @ X + numpy.eye(self.data_dim))
+        
+        ySquaredSum = numpy.sum(numpy.square(y))
+        mu = invU @ X.transpose() @ y
+        mu = mu.squeeze()
+
+        alpha = 0.5 * (1.0 + self.n)
+        beta = 0.5 * (1.0 + ySquaredSum - y.transpose() @ X @ mu)
+        beta = beta.item()
+
+        nu = 1.0 + self.n
+        scaleMatrix = (2.0 * beta / nu) * invU # also called shape matrix here https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_t.html
+        
+        invGamma = scipy.stats.invgamma(a = alpha, scale = beta)
+
+        mvt = scipy.stats.multivariate_t(loc = mu, shape = scaleMatrix, df=nu)
+
+        return invGamma.rvs(size = num_samples), mvt.rvs(size = num_samples)
+    
 
 # CHECKED
 class HorseshoeRegression(Target):
@@ -205,18 +323,6 @@ class HorseshoeRegression(Target):
 
 
 
-
-
-
-
-# a Bayesian Neural Network for regression with one hidden layer
-# ??
-
-    
-
-
-
-
 # CHECKED
 # Funnel Distribution as in "Slice sampling", Neal 2003
 class Funnel(Target):
@@ -227,12 +333,16 @@ class Funnel(Target):
         self.other_dim = dim - 1
         self.vdist = torch.distributions.normal.Normal(0,scale)
         
+        # specify dimension of each parameter
+        self.idm = IndexManager(lambdas = self.data_dim, tau = 1, unscaled_betas = self.data_dim, intercept = 1, sigma_squared = 1)
+        self.d = self.idm.d # total number of parameters
+        
+        # specify parameters which domain is positive
+        self.pos_constraint_ids = None
+
         self.true_log_marginal = 0.0
-        self.D = dim
+        self.d = dim
         return
-    
-    def get_pos_contraint_ids(self):
-        return None
 
     def log_prob(self, z):
         v = z[:,0]
@@ -262,9 +372,9 @@ class Funnel(Target):
         std_other = numpy.sqrt(numpy.exp(v)) + EPSILON
         assert((std_other > 0.0).all())
 
-        std_other = numpy.broadcast_to(std_other, (self.D - 1, num_samples)).transpose()
+        std_other = numpy.broadcast_to(std_other, (self.d - 1, num_samples)).transpose()
 
-        remaining_samples = scipy.stats.norm(loc = numpy.zeros_like(std_other), scale = std_other).rvs(size = (num_samples, self.D - 1))
+        remaining_samples = scipy.stats.norm(loc = numpy.zeros_like(std_other), scale = std_other).rvs(size = (num_samples, self.d - 1))
 
         z = numpy.hstack((v.reshape(-1,1), remaining_samples))
         return z
@@ -437,151 +547,6 @@ def convert_data(X, y, true_beta, true_bias):
     return X, y, true_beta, true_bias
 
 
-# CHECKED
-class ConjugateLinearRegression(Target):
-
-    def __init__(self, X, y, true_beta = None, true_bias = None):
-        super().__init__()
-        self.X, self.y, self.true_beta, self.true_bias = convert_data(X, y, true_beta, true_bias)
-
-        self.d = self.X.shape[1]
-        self.n = self.X.shape[0]
-        self.D = self.d + 1
-
-        self.pos_contraint_ids = torch.tensor([self.d])
-
-        invSigma = self.getInvSigma()
-        self.true_log_marginal = densities.get_log_prob_multivariate_t(commons.moveToDevice(torch.zeros(self.n)), invSigma, df = torch.tensor(1.0), y = self.y.flatten()).item()
-        
-        sigma = (torch.linalg.inv(invSigma)).cpu().numpy()
-        mst = scipy.stats.multivariate_t(loc = numpy.zeros(self.n), shape = sigma, df = 1.0)
-        y_as_matrix = self.y.cpu().numpy()
-        y_as_matrix = y_as_matrix.reshape((1,-1))
-        true_log_marginal_with_scipy = mst.logpdf(y_as_matrix)
-        assert(sigma.shape[0] == sigma.shape[1])
-        assert(sigma.shape[0] == y.shape[0])
-        assert(torch.isclose(torch.tensor(self.true_log_marginal), torch.tensor(true_log_marginal_with_scipy)))
-        
-        return
-
-    def getInvSigma(self):
-        C = torch.linalg.inv(self.X.t() @ self.X + commons.moveToDevice(torch.eye(self.d)))
-        invSigma = commons.moveToDevice(torch.eye(self.n)) - self.X @ C @ self.X.t()
-        return invSigma
-    
-
-    # used only for evaluation
-    def getSamplesFromTruePosterior(self, num_samples):
-        
-        y = self.y.cpu().numpy()
-        X = self.X.cpu().numpy()
-
-        invU = numpy.linalg.inv(X.transpose() @ X + numpy.eye(self.d))
-        
-        ySquaredSum = numpy.sum(numpy.square(y))
-        mu = invU @ X.transpose() @ y
-        mu = mu.squeeze()
-
-
-        alpha = 0.5 * (1.0 + self.n)
-        beta = 0.5 * (1.0 + ySquaredSum - y.transpose() @ X @ mu)
-        beta = beta.item()
-
-        # print("mu.shape = ", mu.shape)
-        # print("X @ mu = ", (X @ mu).shape)
-        # print("y.transpose() = ", y.transpose().shape)
-        # print("y.transpose() @ X @ mu = ", (y.transpose() @ X @ mu).shape)
-        # assert(False)
-
-        nu = 1.0 + self.n
-        scaleMatrix = (2.0 * beta / nu) * invU # also called shape matrix here https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.multivariate_t.html
-        
-        invGamma = scipy.stats.invgamma(a = alpha, scale = beta)
-
-        # print("alpha = ", alpha)
-        # print("beta = ", beta)
-        # print("mu = ", mu.shape)
-        # print("scaleMatrix = ", scaleMatrix.shape)
-
-        mvt = scipy.stats.multivariate_t(loc = mu, shape = scaleMatrix, df=nu)
-
-        return invGamma.rvs(size = num_samples), mvt.rvs(size = num_samples)
-    
-
-    def get_pos_contraint_ids(self):        
-        return self.pos_contraint_ids
-    
-    def get_samples_from_approx(self, posterior_approximation_nfm, num_samples):
-
-        with torch.no_grad():
-            z,log_q = posterior_approximation_nfm.sample(num_samples = num_samples)
-            z,log_q, _, _ = core_adjusted.filter_illegal_values_from_samples(z, log_q)
-            
-            assert(z.shape[0] >= 256) # Monte Carlo Samples
-            assert(z.shape[1] == self.d + 1)
-
-            beta = z[:, 0:self.d]
-            sigmaSquared = z[:, self.d]
-
-            assert(beta.shape[1] == self.d)
-            assert(sigmaSquared.shape[0] >= 256)
-
-            beta = beta.cpu().numpy()
-            sigmaSquared = sigmaSquared.cpu().numpy()
-            
-        return sigmaSquared, beta
-    
-
-    def log_prob(self, z):
-        # assert(z.shape[0] >= 256) # Monte Carlo Samples
-        assert(z.shape[1] == self.d + 1) # dimension
-        assert(torch.sum(torch.isnan(z)) == 0)
-
-        beta = z[:, 0:self.d]
-        # assert(beta.shape[0] >= 256)
-        assert(beta.shape[1] == self.d)
-        # print(beta.shape)
-
-        sigmaSquared = z[:, self.d]
-        # print(sigmaSquared.shape)
-        # assert(False)
-        # assert(sigmaSquared.shape[0] >= 256)
-        
-        log_prior = densities.get_log_prob_inv_gamma(sigmaSquared, alpha = torch.tensor(0.5), beta = torch.tensor(0.5))
-
-        # print("beta = ", beta.shape)
-        # print("sigmaSquared = ", sigmaSquared.shape)
-
-        log_prior_normal = torch.distributions.normal.Normal(loc = torch.zeros_like(beta), scale = torch.sqrt(sigmaSquared.reshape(-1,1))).log_prob(beta)
-        assert(log_prior_normal.shape[1] == self.d)
-        # assert(log_prior_normal.shape[0] >= 256)
-
-        log_prior_normal_each_sample = torch.sum(log_prior_normal, axis = 1)
-
-        # print("log_prior_normal_each_sample = ", log_prior_normal_each_sample.shape)
-        # print("log_prior = ", log_prior.shape)
-        log_prior += log_prior_normal_each_sample
-
-        assert(torch.sum(torch.isnan(self.X)) == 0)
-        assert(torch.sum(torch.isnan(beta)) == 0)
-
-        assert(torch.all(torch.isfinite(sigmaSquared)))
-        assert(torch.all(torch.isfinite(beta)))
-
-        mu = self.X @ beta.t()
-
-        # print("mu.shape = ", mu.shape)
-        # print("self.y = ", self.y.shape)
-        assert(torch.sum(torch.isnan(mu)) == 0)
-        log_likelihood_each_observation = torch.distributions.normal.Normal(loc = mu, scale = torch.sqrt(sigmaSquared)).log_prob(self.y.reshape(-1,1))
-        assert(log_likelihood_each_observation.shape[0] == self.X.shape[0]) # and log_likelihood_each_observation.shape[1] >= 256)
-
-        # print("log_likelihood_each_observation = ", log_likelihood_each_observation.shape)
-        log_likelihood = torch.sum(log_likelihood_each_observation, axis = 0)
-
-        assert(log_likelihood.shape[0] == z.shape[0])
-        assert(log_likelihood.shape == log_prior.shape)
-        return log_prior + log_likelihood
     
 
 

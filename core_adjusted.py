@@ -59,17 +59,9 @@ def filter_illegal_values_from_samples(z, log_q):
     return z, log_q, invalid_value_found, failed
 
 
+# Adjusted from original implementation in core.py of normflows packages
 def reverse_kld(nfm, num_samples=1, beta=1.0, show_details = False):
-    """Adjusted from original implementation in core.py of normflows packages
-
-    Args:
-        num_samples: Number of samples to draw from base distribution
-        beta: Annealing parameter, see [arXiv 1505.05770](https://arxiv.org/abs/1505.05770)
         
-    Returns:
-        Estimate of the reverse KL divergence averaged over latent samples
-    """
-    
     #  here z correponds to theta
     z, log_q = nfm.sample(num_samples)
     z, log_q, invalid_value_found, failed = filter_illegal_values_from_samples(z, log_q)
