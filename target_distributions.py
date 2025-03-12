@@ -22,7 +22,7 @@ from helper import IndexManager
 
 class BayesianLinearRegressionSimple(torch.nn.Module):
 
-    def __init__(self, X, y, likelihood_variance):
+    def __init__(self, X, y, prior_variance, likelihood_variance):
         super().__init__()
     
         # Data D
@@ -34,7 +34,7 @@ class BayesianLinearRegressionSimple(torch.nn.Module):
 
         # register non-parameters (this is useful for example to ensure that their are also moved to the GPU if you call model.cuda() etc.)
         self.register_buffer('likelihood_variance', torch.tensor([likelihood_variance]))  # treated as a constant here (for simplicity)
-        self.register_buffer('prior_variance', torch.tensor([1.0]))
+        self.register_buffer('prior_variance', torch.tensor([prior_variance]))
 
         # specify dimension of each parameter
         self.idm = IndexManager(beta = self.data_dim, intercept = 1)

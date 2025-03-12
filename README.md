@@ -1,11 +1,15 @@
 # Tutorial for High-dimensional Variational Inference
 
-Implements the models and methods proposed in [Stabilizing Training of Affine Coupling Layers for High-dimensional Variational Inference](https://doi.org/10.1088/2632-2153/ad9a39), Machine Learning: Science and Technology, 2024.
+This tutorial explains the basics of variational inference (VI) from mean-field VI to normalizing flows, and 
+then show how to use/implement VI with PyTorch. The goal of this tutorial is to provide a good starting point for graduate students/researchers interested in applying VI to their Bayesian models, and also to acquire skills in analysis/debugging of VI. 
+
+The code introduced here is based on the models and methods discussed in [Stabilizing Training of Affine Coupling Layers for High-dimensional Variational Inference](https://doi.org/10.1088/2632-2153/ad9a39), Machine Learning: Science and Technology, 2024.
 Most of the code should be scalabe to up to around 10000 dimensions.
 However, for high-dimensions (d > 500) recommend usage of GPU.
 
 Part of the code here is adapated from the normflows package
 https://github.com/VincentStimper/normalizing-flows
+
 
 ## Requirements
 
@@ -34,7 +38,7 @@ mkdir all_results && mkdir all_trained_models
 
 ## Usage 
 
-See *recent_vi_methods_tutorial.pdf* for an introduction, and *simple_example.py* for various examples.
+See *simple_example.py* for various examples.
 
 
 ## Citation 
