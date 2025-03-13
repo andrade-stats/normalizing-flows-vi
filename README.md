@@ -3,7 +3,7 @@
 This tutorial explains the basics of variational inference (VI) from mean-field VI to normalizing flows, and 
 then shows how to use/implement VI with PyTorch. The goal of this tutorial is to provide a good starting point for graduate students/researchers interested in applying VI to their Bayesian models, and also to acquire skills in analysis/debugging of VI. 
 
-[Slides for this tutorial](https://drive.google.com/file/d/1ahZAMMzsyEZejL-f3gORfgpA9tmC7uZH/view?usp=sharing)
+[Slides for this tutorial](https://drive.google.com/file/d/1ahZAMMzsyEZejL-f3gORfgpA9tmC7uZH/view?usp=drive_link)
 
 The code introduced here is based on the models and methods discussed in [Stabilizing Training of Affine Coupling Layers for High-dimensional Variational Inference](https://doi.org/10.1088/2632-2153/ad9a39), Machine Learning: Science and Technology, 2024.
 Most of the code should be scalabe to up to around 10000 dimensions.
@@ -40,7 +40,8 @@ mkdir all_results && mkdir all_trained_models
 
 ## Usage 
 
-See *simple_example.py* for various examples.
+See [Slides for this tutorial](https://drive.google.com/file/d/1ahZAMMzsyEZejL-f3gORfgpA9tmC7uZH/view?usp=drive_link)
+and *simple_example.py* for various examples.
 
 
 ## Citation 

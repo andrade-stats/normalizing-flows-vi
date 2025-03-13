@@ -19,7 +19,7 @@ EPSILON = 10 ** -6 # to ensure strict positiveness
 from helper import IndexManager
 
 
-class BayesianLinearRegressionSimple(torch.nn.Module):
+class BayesianLinearRegressionSimple(Target):
 
     def __init__(self, X, y, prior_variance, likelihood_variance):
         super().__init__()
