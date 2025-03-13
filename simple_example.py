@@ -17,15 +17,17 @@ torch.manual_seed(432432)
 
 # *************** Specify Bayesian Model / Target Distribution *************
 
+np.random.seed(432432) # used only for the synthetic data generation
+
 DATA_SAMPLES = 10
 DATA_DIM = 10
 X, y, true_beta , _ = synthetic_data.lasso_linear(n = DATA_SAMPLES, d = DATA_DIM)
 X, y = commons.get_pytorch_tensors(X, y)
 
-target = BayesianLinearRegressionSimple(X, y, prior_variance = 1.0, likelihood_variance = 1.0)
+# target = BayesianLinearRegressionSimple(X, y, prior_variance = 1.0, likelihood_variance = 1.0)
 
 # target = HorseshoeRegression(X, y) # n = 1000, data_dim = 1000 : around 4 hours with Ada GPU
-# target = ConjugateBayesianLinearRegression(X, y)
+target = ConjugateBayesianLinearRegression(X, y)
 # target = BayesianLasso(X, y)
 # target = Funnel(10)
 # target = MultivariateNormalMixture(10)
@@ -102,7 +104,7 @@ vi_approx.eval()
 elbo = estimators.elbo_estimate(vi_approx, num_samples = 2000)
 print("lower bound on marginal likelihood = ", elbo)
 
-mll = estimators.importance_sampling(vi_approx, num_samples = 2000)  # in general this needs more samples!
+mll = estimators.importance_sampling(vi_approx, num_samples = 20000)  # in general this needs more samples!
 print("marginal likelihood estimate (with importance samples)= ", mll)
 
 print("true marinal likelihood = ", target.true_log_marginal)

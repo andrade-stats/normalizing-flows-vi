@@ -16,7 +16,6 @@ import math
 
 EPSILON = 10 ** -6 # to ensure strict positiveness
 
-from normflows.distributions import Target
 from helper import IndexManager
 
 
@@ -132,7 +131,7 @@ class ConjugateBayesianLinearRegression(Target):
 
         return
 
-
+    # helper method
     def getInvSigma(self):
         C = torch.linalg.inv(self.X.t() @ self.X + commons.moveToDevice(torch.eye(self.data_dim)))
         invSigma = commons.moveToDevice(torch.eye(self.n)) - self.X @ C @ self.X.t()
